@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Otsu - Cliente Servidor</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <h2>Subir Imagen al Servidor</h2>
+  <form id="uploadForm" action="/upload-image" method="POST" enctype="multipart/form-data">
+    <input type="file" name="image" accept="image/*" required>
+    <button type="submit">Subir Imagen</button>
+  </form>
+
+  <div id="message" class="message"></div>
+
+  <h2>Imagen Original Subida</h2>
+  <img src="{{ url_for('static', filename='uploaded.jpg') }}" alt="Imagen no disponible" width="300" onerror="this.style.display='none'">
+
+  <h2>Imagen Procesada con Otsu</h2>
+  <img src="{{ url_for('static', filename='otsu.jpg') }}" alt="Imagen Otsu no disponible" width="300" onerror="this.style.display='none'">
+
+</body>
+</html>

@@ -5,135 +5,27 @@
   <title>Umbral Otsu con Pyodide (Python en cliente)</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+  <script defer src="{{ url_for('static', filename='app.js') }}"></script>
 </head>
 <body>
-  <h2>Sube una imagen para aplicar umbral Otsu con Python en cliente</h2>
-  <input type="file" id="inputImage" accept="image/*" />
-  <br />
-  <button id="processBtn" disabled>Procesar Otsu (Python)</button>
+  <div class="container">
+    <h2>Subir imagen</h2>
+    <input type="file" id="inputImage" accept="image/*" />
+    <button id="clientBtn" disabled>Procesar Otsu (Python cliente)</button>
+    <button id="serverBtn" disabled>Procesar Otsu (Servidor)</button>
 
-  <h2>Imagen Original</h2>
-  <canvas id="originalCanvas"></canvas>
+    <div class="images-row">
+      <div class="image-block">
+        <h2>Imagen Original</h2>
+        <canvas id="originalCanvas"></canvas>
+      </div>
 
-  <h2>Imagen Umbralizada (Otsu)</h2>
-  <canvas id="resultCanvas"></canvas>
-
-  <script>
-    let pyodide = null;
-    let originalImageData = null;
-
-    async function loadPyodideAndPackages() {
-      pyodide = await loadPyodide();
-      await pyodide.loadPackage('numpy');
-      console.log("Pyodide y numpy cargados");
-      document.getElementById("processBtn").disabled = false;
-    }
-
-    loadPyodideAndPackages();
-
-    const inputImage = document.getElementById('inputImage');
-    const originalCanvas = document.getElementById('originalCanvas');
-    const resultCanvas = document.getElementById('resultCanvas');
-    const processBtn = document.getElementById('processBtn');
-
-    const originalCtx = originalCanvas.getContext('2d');
-    const resultCtx = resultCanvas.getContext('2d');
-
-    inputImage.addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
-          originalCanvas.width = img.width;
-          originalCanvas.height = img.height;
-          resultCanvas.width = img.width;
-          resultCanvas.height = img.height;
-
-          originalCtx.drawImage(img, 0, 0);
-          originalImageData = originalCtx.getImageData(0, 0, img.width, img.height);
-          resultCtx.clearRect(0, 0, resultCanvas.width, resultCanvas.height);
-        };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
-
-    async function runOtsuThresholding(imageData) {
-      const width = imageData.width;
-      const height = imageData.height;
-      const data = imageData.data;
-      let gray = new Uint8Array(width * height);
-
-      for (let i = 0; i < width * height; i++) {
-        const r = data[i * 4];
-        const g = data[i * 4 + 1];
-        const b = data[i * 4 + 2];
-        gray[i] = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-      }
-
-      const pyCode = `
-import numpy as np
-
-def otsu_threshold(image):
-    pixel_counts, bin_edges = np.histogram(image, bins=256, range=(0,255))
-    total = image.size
-    current_max, threshold = 0, 0
-    sum_total = np.dot(np.arange(256), pixel_counts)
-    sum_b, weight_b = 0, 0
-
-    for i in range(256):
-        weight_b += pixel_counts[i]
-        if weight_b == 0:
-            continue
-        weight_f = total - weight_b
-        if weight_f == 0:
-            break
-        sum_b += i * pixel_counts[i]
-        mean_b = sum_b / weight_b
-        mean_f = (sum_total - sum_b) / weight_f
-        between_var = weight_b * weight_f * (mean_b - mean_f) ** 2
-        if between_var > current_max:
-            current_max = between_var
-            threshold = i
-    return threshold
-
-gray = np.array(${JSON.stringify(Array.from(gray))}, dtype=np.uint8)
-threshold = otsu_threshold(gray)
-result = (gray > threshold) * 255
-result.tolist()
-`;
-
-      const resultFlat = await pyodide.runPythonAsync(pyCode);
-
-      const resultArray = new Uint8ClampedArray(resultFlat);
-
-      let resultImageData = new ImageData(width, height);
-      for (let i = 0; i < width * height; i++) {
-        const val = resultArray[i];
-        resultImageData.data[i * 4] = val;
-        resultImageData.data[i * 4 + 1] = val;
-        resultImageData.data[i * 4 + 2] = val;
-        resultImageData.data[i * 4 + 3] = 255;
-      }
-
-      return resultImageData;
-    }
-
-    processBtn.addEventListener('click', async () => {
-      if (!originalImageData) {
-        alert("Sube una imagen primero");
-        return;
-      }
-      processBtn.disabled = true;
-      processBtn.textContent = "Procesando...";
-      const thresholded = await runOtsuThresholding(originalImageData);
-      resultCtx.putImageData(thresholded, 0, 0);
-      processBtn.textContent = "Procesar Otsu (Python)";
-      processBtn.disabled = false;
-    });
-  </script>
+      <div class="image-block">
+        <h2>Resultado Umbralizado</h2>
+        <canvas id="resultCanvas" style="display:none;"></canvas>
+        <img id="serverResult" alt="Resultado servidor" style="display:none;"/>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
